@@ -3,16 +3,19 @@
 #----------------------------------------------------------------------------#
 
 import json
+from os import name
 import dateutil.parser
 import babel
-from flask import Flask, render_template, request, Response, flash, redirect, url_for, jsonify
+from flask import Flask, render_template, request, Response, flash, redirect, url_for
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 import logging
 from logging import Formatter, FileHandler
 from flask_wtf import Form
+from werkzeug import datastructures
 from forms import *
+from sqlalchemy.exc import SQLAlchemyError
 #----------------------------------------------------------------------------#
 # App Config.
 #----------------------------------------------------------------------------#
@@ -43,8 +46,8 @@ class Venue(db.Model):
     facebook_link = db.Column(db.String(120))
     website_link = db.Column(db.String(120))
     genres = db.Column(db.String(120))
-    looking_for_talent = db.Column(db.Boolean)
-    seeking_desc = db.Column(db.String(500))
+    seeking_talent = db.Column(db.Boolean)
+    seeking_description = db.Column(db.String(500))
     shows = db.relationship('Show', backref='show', lazy=False)
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
@@ -62,8 +65,8 @@ class Artist(db.Model):
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
     website_link = db.Column(db.String(120))
-    looking_for_venues = db.Column(db.Boolean)
-    seeking_desc = db.Column(db.String(500))
+    seeking_venue = db.Column(db.Boolean)
+    seeking_description = db.Column(db.String(500))
     shows = db.relationship('Show', backref='show', lazy=False)
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
@@ -250,15 +253,43 @@ def create_venue_form():
 
 @app.route('/venues/create', methods=['POST'])
 def create_venue_submission():
-    # TODO: insert form data as a new Venue record in the db, instead
-    # TODO: modify data to be the data object returned from db insertion
-
-    # on successful db insert, flash success
-    flash('Venue ' + request.form['name'] + ' was successfully listed!')
-    # TODO: on unsuccessful db insert, flash an error instead.
-    # e.g., flash('An error occurred. Venue ' + data.name + ' could not be listed.')
-    # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
+    form = VenueForm(request.form, meta={'csrf': False})
+    if(form.validate()):
+        try:
+            venue = Venue(
+                name=form.name.data,
+                city=form.city.data,
+                state=form.state.data,
+                address=form.address.data,
+                phone=form.phone.data,
+                image_link=form.image_link.data,
+                facebook_link=form.facebook_link.data,
+                website_link=form.website_link.data,
+                genres=form.genres.data,
+                seeking_talent=form.seeking_talent.data,
+                seeking_description=form.seeking_description.data
+            )
+            db.session.add(venue)
+            db.session.commit()
+            flash('Venue ' + request.form['name'] +
+                  ' was successfully listed!')
+        except SQLAlchemyError as e:
+            print(e)
+            db.session.rollback()
+            flash('An error occurred. Venue ' +
+                  form.name.data + ' could not be listed.')
+        finally:
+            db.session.close()
+    else:
+        message = []
+        for field, errors in form.errors.items():
+            message.append(field + ': (' + '|'.join(errors) + ')')
+        flash('The Venue data is not valid. Please try again!')
     return render_template('pages/home.html')
+
+
+#  Delete Venue
+#  ----------------------------------------------------------------
 
 
 @app.route('/venues/<venue_id>', methods=['DELETE'])
@@ -270,8 +301,10 @@ def delete_venue(venue_id):
     # clicking that button delete it from the db then redirect the user to the homepage
     return None
 
+
 #  Update Venue
 #  ----------------------------------------------------------------
+
 
 @app.route('/venues/<int:venue_id>/edit', methods=['GET'])
 def edit_venue(venue_id):
