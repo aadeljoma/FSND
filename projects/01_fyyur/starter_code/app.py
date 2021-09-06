@@ -183,7 +183,7 @@ def show_venue(venue_id):
     data = {
         "id": venue.id,
         "name": venue.name,
-        "genres": venue.genres,
+        "genres": venue.genres[1: -1].split(","),
         "address": venue.address,
         "city": venue.city,
         "state": venue.state,
@@ -196,8 +196,7 @@ def show_venue(venue_id):
         "past_shows": past_shows,
         "upcoming_shows": upcoming_shows,
         "past_shows_count": len(past_shows),
-        "upcoming_shows_count": len(upcoming_shows),
-
+        "upcoming_shows_count": len(upcoming_shows)
     }
     return render_template('pages/show_venue.html', venue=data)
 
