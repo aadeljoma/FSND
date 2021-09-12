@@ -124,7 +124,8 @@ def venues():
                 Show.venue_id == venue.id).all()
             show_list = []
             for show in shows:
-                if(show.start_time > datetime.now()):
+                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                if(show.start_time > current_time):
                     show_list.append(show)
 
             venue_data.append({
@@ -142,12 +143,13 @@ def search_venues():
         Venue.name.ilike(f'%{search_term}%')).all()
     data = []
     for result in new_results:
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         data.append({
             "id": result.id,
             "name": result.name,
-            "num_upcoming_shows": len(db.session.query(Show).filter(Show.venue_id == result.id).all())
+            "num_upcoming_shows": len(db.session.query(Show).filter(Show.venue_id == result.id).filter(Show.start_time > current_time).all())
         })
-        # .filter(Show.start_time > datetime.now())
+        # 
     response = {
         "count": len(new_results),
         "data": data
@@ -163,7 +165,8 @@ def show_venue(venue_id):
     past_shows = []
     upcoming_shows = []
     for show in shows:
-        if(show.start_time > datetime.now()):
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        if(show.start_time > current_time):
             upcoming_shows.append({
                 "artist_id": show.artist.id,
                 "artist_name": show.artist.name,
