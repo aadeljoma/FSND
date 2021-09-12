@@ -149,7 +149,7 @@ def search_venues():
             "name": result.name,
             "num_upcoming_shows": len(db.session.query(Show).filter(Show.venue_id == result.id).filter(Show.start_time > current_time).all())
         })
-        # 
+        #
     response = {
         "count": len(new_results),
         "data": data
@@ -352,7 +352,8 @@ def show_artist(artist_id):
     past_shows = []
     upcoming_shows = []
     for show in shows:
-        if(show.start_time > datetime.now()):
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        if(show.start_time > current_time):
             upcoming_shows.append({
                 "venue_id": show.venue.id,
                 "venue_name": show.venue.name,
@@ -527,14 +528,28 @@ def create_shows():
 
 @app.route('/shows/create', methods=['POST'])
 def create_show_submission():
-    # called to create new shows in the db, upon submitting new show listing form
-    # TODO: insert form data as a new Show record in the db, instead
-
-    # on successful db insert, flash success
-    flash('Show was successfully listed!')
-    # TODO: on unsuccessful db insert, flash an error instead.
-    # e.g., flash('An error occurred. Show could not be listed.')
-    # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
+    form = ShowForm(request.form, meta={'csrf': False})
+    if(form.validate()):
+        try:
+            show = Show(
+                venue_id=form.venue_id.data,
+                artist_id=form.artist_id.data,
+                start_time=form.start_time.data
+            )
+            db.session.add(show)
+            db.session.commit()
+            flash('Show was successfully listed!')
+        except SQLAlchemyError as e:
+            print(e)
+            db.session.rollback()
+            flash('An error occurred. Show could not be listed.')
+        finally:
+            db.session.close()
+    else:
+        message = []
+        for field, errors in form.errors.items():
+            message.append(field + ': (' + '|'.join(errors) + ')')
+        flash('The Show data is not valid. Please try again!')
     return render_template('pages/home.html')
 
 
