@@ -16,6 +16,8 @@ from flask_wtf import Form
 from werkzeug import datastructures
 from forms import *
 from sqlalchemy.exc import SQLAlchemyError
+from models import *
+from flasgger import Swagger
 #----------------------------------------------------------------------------#
 # App Config.
 #----------------------------------------------------------------------------#
@@ -24,58 +26,7 @@ app = Flask(__name__)
 moment = Moment(app)
 app.config.from_object('config')
 db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-
-# TODO: connect to a local postgresql database
-
-#----------------------------------------------------------------------------#
-# Models.
-#----------------------------------------------------------------------------#
-
-
-class Venue(db.Model):
-    __tablename__ = 'Venue'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    address = db.Column(db.String(120))
-    phone = db.Column(db.String(120))
-    image_link = db.Column(db.String(500))
-    facebook_link = db.Column(db.String(120))
-    website_link = db.Column(db.String(120))
-    genres = db.Column(db.String(120))
-    seeking_talent = db.Column(db.Boolean)
-    seeking_description = db.Column(db.String(500))
-    shows = db.relationship('Show', lazy=False)
-
-
-class Artist(db.Model):
-    __tablename__ = 'Artist'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    phone = db.Column(db.String(120))
-    genres = db.Column(db.String(120))
-    image_link = db.Column(db.String(500))
-    facebook_link = db.Column(db.String(120))
-    website_link = db.Column(db.String(120))
-    seeking_venue = db.Column(db.Boolean)
-    seeking_description = db.Column(db.String(500))
-    shows = db.relationship('Show', lazy=False)
-
-
-class Show(db.Model):
-    __tablename__ = 'Show'
-    artist_id = db.Column(db.Integer, db.ForeignKey(
-        'Artist.id'), primary_key=True)
-    venue_id = db.Column(db.Integer, db.ForeignKey(
-        'Venue.id'), primary_key=True)
-    start_time = db.Column(db.String(120))
-
+Swagger(app)
 
 #----------------------------------------------------------------------------#
 # Filters.
@@ -213,6 +164,12 @@ def create_venue_form():
 
 @app.route('/venues/create', methods=['POST'])
 def create_venue_submission():
+    """ Create a new venue to the database
+
+    Returns:
+        on POST: Redirect to main page after venue has been created.
+
+    """
     form = VenueForm(request.form, meta={'csrf': False})
     if(form.validate()):
         try:
@@ -331,12 +288,12 @@ def search_artists():
         Artist.name.ilike(f'%{search_term}%')).all()
     data = []
     for result in new_results:
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         data.append({
             "id": result.id,
             "name": result.name,
-            "num_upcoming_shows": len(db.session.query(Show).filter(Show.artist_id == result.id).all())
+            "num_upcoming_shows": len(db.session.query(Show).filter(Show.artist_id == result.id).filter(Show.start_time > current_time).all())
         })
-        # .filter(Show.start_time > datetime.now())
     response = {
         "count": len(new_results),
         "data": data
@@ -399,6 +356,12 @@ def create_artist_form():
 
 @app.route('/artists/create', methods=['POST'])
 def create_artist_submission():
+    """ Create a new artist to the database
+
+    Returns:
+        on POST: Redirect to main page after artist has been created.
+
+    """
     form = ArtistForm(request.form, meta={'csrf': False})
     if(form.validate()):
         try:
@@ -501,6 +464,12 @@ def create_shows():
 
 @app.route('/shows/create', methods=['POST'])
 def create_show_submission():
+    """ Create a new show to the database
+
+    Returns:
+        on POST: Redirect to main page after show has been created.
+
+    """
     form = ShowForm(request.form, meta={'csrf': False})
     if(form.validate()):
         try:
