@@ -110,17 +110,49 @@ def create_app(test_config=None):
   the form will clear and the question will appear at the end of the last page
   of the questions list in the "List" tab.  
   '''
+    @app.route("/questions", methods=["POST"])
+    def search_or_create_question():
+        body = request.get_json()
 
-    '''
-  @TODO: 
-  Create a POST endpoint to get questions based on a search term. 
-  It should return any questions for whom the search term 
-  is a substring of the question. 
+        new_question = body.get("question", None)
+        new_answer = body.get("answer", None)
+        new_difficulty = body.get("difficulty", None)
+        new_category = body.get("category", None)
+        searchTerm = body.get("searchTerm", None)
 
-  TEST: Search by any phrase. The questions list will update to include 
-  only question that include that string within their question. 
-  Try using the word "title" to start. 
-  '''
+        try:
+            if searchTerm:
+                selection = Question.query.order_by(Question.id).filter(
+                    Question.question.ilike("%{}%".format(searchTerm)))
+
+                current_questions = paginate_questions(request, selection)
+
+                return jsonify({
+                    "success": True,
+                    "questions": current_questions,
+                    "total_questions": len(selection.all()),
+                    "current_category": None
+                })
+
+            else:
+                question = Question(question=new_question,
+                                    answer=new_answer,
+                                    difficulty=new_difficulty,
+                                    category=new_category)
+                question.insert()
+
+                selection = Question.query.order_by(Question.id).all()
+                current_questions = paginate_questions(request, selection)
+
+                return jsonify({
+                    "success": True,
+                    "created": question.id,
+                    "questions": current_questions,
+                    "total_questions": len(Question.query.all())
+                })
+
+        except:
+            abort(422)
 
     '''
   @TODO: 
