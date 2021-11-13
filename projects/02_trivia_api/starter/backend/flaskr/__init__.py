@@ -100,16 +100,6 @@ def create_app(test_config=None):
         except:
             abort(422)
 
-    '''
-  @TODO: 
-  Create an endpoint to POST a new question, 
-  which will require the question and answer text, 
-  category, and difficulty score.
-
-  TEST: When you submit a question on the "Add" tab, 
-  the form will clear and the question will appear at the end of the last page
-  of the questions list in the "List" tab.  
-  '''
     @app.route("/questions", methods=["POST"])
     def search_or_create_question():
         body = request.get_json()
@@ -175,10 +165,20 @@ def create_app(test_config=None):
   and shown whether they were correct or not. 
   '''
 
-    '''
-  @TODO: 
-  Create error handlers for all expected errors 
-  including 404 and 422. 
-  '''
+    @app.errorhandler(404)
+    def not_found(error):
+        return (
+            jsonify({"success": False, "error": 404,
+                    "message": "resource not found"}),
+            404,
+        )
+
+    @app.errorhandler(422)
+    def unprocessable(error):
+        return (
+            jsonify({"success": False, "error": 422,
+                    "message": "unprocessable"}),
+            422,
+        )
 
     return app
