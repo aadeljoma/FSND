@@ -4,6 +4,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import random
 
+from sqlalchemy.sql.expression import null
+
 from models import setup_db, Question, Category
 
 QUESTIONS_PER_PAGE = 10
@@ -40,18 +42,14 @@ def create_app(test_config=None):
     @app.route("/categories")
     def retrieve_categories():
         categories = Category.query.order_by(Category.id).all()
-        list = [category.format() for category in categories]
+        list = [category.type for category in categories]
 
         if len(list) == 0:
             abort(404)
 
-        categories_types = []
-        for item in list:
-            categories_types.append(item['type'])
-
         return jsonify({
             "success": True,
-            "categories": categories_types
+            "categories": list
         })
 
     @app.route("/questions")
@@ -72,9 +70,9 @@ def create_app(test_config=None):
             {
                 "success": True,
                 'questions': current_questions,
-                'totalQuestions': total_questions,
+                'total_questions': total_questions,
                 'categories': formatted_categories,
-                'currentCategory': None
+                'current_category': None
             }
         )
 
@@ -100,14 +98,38 @@ def create_app(test_config=None):
         except:
             abort(422)
 
-    @app.route("/questions", methods=["POST"])
-    def search_or_create_question():
+    @app.route("/questions/add", methods=["POST"])
+    def create_question():
         body = request.get_json()
 
         new_question = body.get("question", None)
         new_answer = body.get("answer", None)
         new_difficulty = body.get("difficulty", None)
         new_category = body.get("category", None)
+
+        try:
+            question = Question(question=new_question,
+                                answer=new_answer,
+                                category=new_category,
+                                difficulty=new_difficulty)
+            question.insert()
+
+            selection = Question.query.order_by(Question.id).all()
+            current_questions = paginate_questions(request, selection)
+
+            return jsonify({
+                "success": True,
+                "created": question.id,
+                "questions": current_questions,
+                "total_questions": len(Question.query.all())
+            })
+
+        except:
+            abort(422)
+
+    @app.route("/questions/search", methods=["POST"])
+    def search_questions():
+        body = request.get_json()
         searchTerm = body.get("searchTerm", None)
 
         try:
@@ -124,34 +146,26 @@ def create_app(test_config=None):
                     "current_category": None
                 })
 
-            else:
-                question = Question(question=new_question,
-                                    answer=new_answer,
-                                    difficulty=new_difficulty,
-                                    category=new_category)
-                question.insert()
-
-                selection = Question.query.order_by(Question.id).all()
-                current_questions = paginate_questions(request, selection)
-
-                return jsonify({
-                    "success": True,
-                    "created": question.id,
-                    "questions": current_questions,
-                    "total_questions": len(Question.query.all())
-                })
-
         except:
             abort(422)
+            
+    @app.route("/categories/<int:category_id>/questions", methods=["GET"])
+    def get_questions_by_category(category_id):
+        try:
+            selection = Question.query.order_by(Question.id).filter(
+                Question.category == category_id)
 
-    '''
-  @TODO: 
-  Create a GET endpoint to get questions based on category. 
+            current_questions = paginate_questions(request, selection)
 
-  TEST: In the "List" tab / main screen, clicking on one of the 
-  categories in the left column will cause only questions of that 
-  category to be shown. 
-  '''
+            return jsonify({
+                "success": True,
+                "questions": current_questions,
+                "total_questions": len(selection.all()),
+                "current_category": None
+            })
+
+        except:
+            abort(400)
 
     '''
   @TODO: 
@@ -180,5 +194,5 @@ def create_app(test_config=None):
                     "message": "unprocessable"}),
             422,
         )
-        
+
     return app
