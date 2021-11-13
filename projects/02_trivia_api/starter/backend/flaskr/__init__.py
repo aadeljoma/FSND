@@ -180,5 +180,5 @@ def create_app(test_config=None):
                     "message": "unprocessable"}),
             422,
         )
-
+        
     return app
