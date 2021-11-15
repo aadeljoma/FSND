@@ -178,29 +178,23 @@ def create_app(test_config=None):
             previousQuestions = body.get("previous_questions", None)
             quizCategory = body.get("quiz_category", None)
 
-            # print(quizCategory)
-
             if quizCategory['type'] == 'click':
                 questions = Question.query.order_by(Question.id).filter(
                     Question.id.notin_(previousQuestions)).all()
-                # print(questions)
             else:
                 questions = Question.query.order_by(Question.id).filter(
                     Question.category == quizCategory["id"]).filter(
                     Question.id.notin_(previousQuestions)).all()
-                # print(questions)
 
             formatted_questions = [question.format() for question in questions]
-
-            # print(formatted_questions)
 
             questions_choices = []
 
             for item in formatted_questions:
                 if item['id'] not in previousQuestions:
                     questions_choices.append(item)
-            
-            # print(questions_choices)
+
+            current_question = ""
 
             if len(questions_choices) > 0:
                 current_question = random.choice(questions_choices)
