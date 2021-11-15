@@ -42,14 +42,14 @@ def create_app(test_config=None):
     @app.route("/categories")
     def retrieve_categories():
         categories = Category.query.order_by(Category.id).all()
-        list = [category.type for category in categories]
+        formatted_categories = {category.id: category.type for category in categories}
 
-        if len(list) == 0:
+        if len(formatted_categories) == 0:
             abort(404)
 
         return jsonify({
             "success": True,
-            "categories": list
+            "categories": formatted_categories
         })
 
     @app.route("/questions")
@@ -148,7 +148,7 @@ def create_app(test_config=None):
 
         except:
             abort(422)
-            
+
     @app.route("/categories/<int:category_id>/questions", methods=["GET"])
     def get_questions_by_category(category_id):
         try:
@@ -167,17 +167,51 @@ def create_app(test_config=None):
         except:
             abort(400)
 
-    '''
-  @TODO: 
-  Create a POST endpoint to get questions to play the quiz. 
-  This endpoint should take category and previous question parameters 
-  and return a random questions within the given category, 
-  if provided, and that is not one of the previous questions. 
+    @app.route("/quizzes", methods=["POST"])
+    def get_quizzes():
+        body = request.get_json()
 
-  TEST: In the "Play" tab, after a user selects "All" or a category,
-  one question at a time is displayed, the user is allowed to answer
-  and shown whether they were correct or not. 
-  '''
+        try:
+            if not ('quiz_category' in body and 'previous_questions' in body):
+                abort(404)
+
+            previousQuestions = body.get("previous_questions", None)
+            quizCategory = body.get("quiz_category", None)
+
+            # print(quizCategory)
+
+            if quizCategory['type'] == 'click':
+                questions = Question.query.order_by(Question.id).filter(
+                    Question.id.notin_(previousQuestions)).all()
+                # print(questions)
+            else:
+                questions = Question.query.order_by(Question.id).filter(
+                    Question.category == quizCategory["id"]).filter(
+                    Question.id.notin_(previousQuestions)).all()
+                # print(questions)
+
+            formatted_questions = [question.format() for question in questions]
+
+            # print(formatted_questions)
+
+            questions_choices = []
+
+            for item in formatted_questions:
+                if item['id'] not in previousQuestions:
+                    questions_choices.append(item)
+            
+            # print(questions_choices)
+
+            if len(questions_choices) > 0:
+                current_question = random.choice(questions_choices)
+
+            return jsonify({
+                "success": True,
+                "question": current_question
+            })
+
+        except:
+            abort(400)
 
     @app.errorhandler(404)
     def not_found(error):
